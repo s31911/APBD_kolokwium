@@ -98,7 +98,7 @@ public class DbService : IDbService
     //     return res;
     //
     // }
-    public async Task<Orders> GetOrder(int id)
+    public async Task<GetOrderDto> GetOrder(int id)
     {
         var checkIfExists = await _dbContext.Orders.AnyAsync(item => item.OrderId == id);
         if (!checkIfExists)
@@ -106,12 +106,70 @@ public class DbService : IDbService
             throw new NotFoundException($"Order with id {id} not found!");
         };
         
-        var result = _dbContext.Orders.FirstOrDefault(item => item.OrderId == id);
-        throw new Exception("TMP");
+        var result = await _dbContext.Orders.Where(item => item.OrderId == id).Select(
+            order => new GetOrderDto()
+            {
+                OrderId =  order.OrderId,
+                OrderDate = order.OrderDate,
+                Status = order.Status,
+                TotalAmount = order.TotalAmount,
+                User = order.user.UserName,
+                Payments = order.Payments.Select(payment => new GetOrderDto.PaymentsDTO()
+                {
+                    PaymentId = payment.PaymentId,
+                    PaymentMethod = payment.PaymentMethod,
+                    Amount =   payment.Amount,
+                    Status = payment.PaymentStatus
+                }).ToList(),
+                OrderItems = order.OrderItemsCollection.Select(items => new GetOrderDto.OrderItemsDTO()
+                    {
+                        Quantity = items.Quantity,
+                        Price = items.Price,
+                        Product = new GetOrderDto.ProductDto()
+                        {
+                            ProductsId = items.ProductId,
+                            Name = items.Product.Name,
+                            Description = items.Product.Description,
+                            Price = items.Product.Price,
+                            StockQuantity =  items.Product.StockQuantity,
+                        }
+                        
+                    }
+                    
+                    ).ToList(),
+                
+            }
+            
+            
+            
+            ).FirstOrDefaultAsync();
+        
+        return result;
     }
 
     public async Task UpdateOrder(int id,UpdateOrderDto order)
     {
-        throw new NotImplementedException();
+        var checkIfExists = await _dbContext.Orders.AnyAsync(item => item.OrderId == id);
+        if (!checkIfExists)
+        {
+            throw new NotFoundException($"Order with id {id} not found!");
+        }
+        
+        var transaction = await _dbContext.Database.BeginTransactionAsync();
+        try
+        {
+            var myorder = _dbContext.Orders.Where(order => order.OrderId==id).FirstAsync();
+            // myorder.Status = "Processed";
+
+            
+            await _dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+        catch (Exception e)
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+        
     }
 }

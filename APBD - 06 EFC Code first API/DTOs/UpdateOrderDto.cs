@@ -2,5 +2,10 @@
 
 public class UpdateOrderDto
 {
+    public class OrderItemsUpdateDto
+    {
+        public DateTime OrderDate { get; set; }
+    }
+
     
 }
