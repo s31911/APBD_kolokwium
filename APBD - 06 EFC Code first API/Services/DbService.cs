@@ -149,18 +149,23 @@ public class DbService : IDbService
 
     public async Task UpdateOrder(int id,UpdateOrderDto order)
     {
-        var checkIfExists = await _dbContext.Orders.AnyAsync(item => item.OrderId == id);
-        if (!checkIfExists)
-        {
-            throw new NotFoundException($"Order with id {id} not found!");
-        }
         
         var transaction = await _dbContext.Database.BeginTransactionAsync();
         try
         {
-            var myorder = _dbContext.Orders.Where(order => order.OrderId==id).FirstAsync();
-            // myorder.Status = "Processed";
+            var myorder = _dbContext.Orders.FirstOrDefault();
 
+            if (myorder == null)
+            {
+                throw new NotFoundException("ORDER NOT FOUND");
+            }
+
+            myorder.Status = "Processed";
+            foreach (var orderItemse in myorder.OrderItemsCollection)
+            {
+                orderItemse.Price =  orderItemse.Price * (decimal) 0.9 ;
+                
+            }
             
             await _dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
